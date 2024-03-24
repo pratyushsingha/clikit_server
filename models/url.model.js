@@ -1,5 +1,11 @@
 import mongoose, { Schema } from "mongoose";
 
+const defaultExpiry = () => {
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() + 30);
+  return currentDate;
+};
+
 const urlSchema = new Schema(
   {
     urlId: {
@@ -22,6 +28,14 @@ const urlSchema = new Schema(
     },
     qrcode: {
       type: String,
+    },
+    expiredIn: {
+      type: Date,
+      default: defaultExpiry,
+    },
+    isLoggedIn: {
+      type: Boolean,
+      default: false,
     },
   },
   {

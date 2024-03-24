@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-  generateShortUrl,
   redirectUrl,
 } from "../controllers/url.controller.js";
 

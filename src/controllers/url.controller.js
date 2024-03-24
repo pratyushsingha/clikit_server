@@ -12,7 +12,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 
   const urlId = nanoid(5);
 
-  const shortenUrl = `${process.env.BACKEND_URL}/${urlId}`;
+  const shortenUrl = `${process.env.BASE_URL}/${urlId}`;
   console.log(shortenUrl);
   if (!shortenUrl)
     throw new ApiError(500, "something went wrong while looming the url");
@@ -49,9 +49,13 @@ const generateQrCode = asyncHandler(async (req, res) => {
   if (!originalUrl) throw new ApiError(422, "url is required");
 
   const qrcode = await QRCode.toDataURL(originalUrl);
-  console.log(qrcode);
-  if (!qrcode)
+  if (!qrcode) {
     throw new ApiError(500, "something went wrong while generating qrcode");
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, qrcode, "qr code generated successfully"));
 });
 
 export { generateShortUrl, redirectUrl, generateQrCode };
