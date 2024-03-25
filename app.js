@@ -39,8 +39,10 @@ app.use(cookieParser());
 
 import urlRouter from "./src/routes/url.route.js";
 import linkRouter from "./src/routes/link.route.js";
+import userRouter from "./src/routes/user.route.js";
 
 app.use("/api/v1/", urlRouter);
 app.use("/", linkRouter);
+app.use("/api/v1/users", userRouter);
 
 export { app };

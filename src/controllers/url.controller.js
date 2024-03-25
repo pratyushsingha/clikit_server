@@ -21,6 +21,8 @@ const generateShortUrl = asyncHandler(async (req, res) => {
     urlId,
     originalUrl,
     shortenUrl,
+    isLoggedIn: req?.user?._id ? true : false,
+    owner: req?.user?._id,
   });
 
   return res
