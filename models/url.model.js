@@ -10,7 +10,6 @@ const urlSchema = new Schema(
   {
     urlId: {
       type: String,
-      required: true,
     },
     originalUrl: {
       type: String,
@@ -19,7 +18,6 @@ const urlSchema = new Schema(
     },
     shortenUrl: {
       type: String,
-      required: true,
     },
     clicks: {
       type: Number,
