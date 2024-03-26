@@ -7,7 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Url } from "../../models/url.model.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
-  const { originalUrl } = req.body;
+  const { originalUrl, expiresIn } = req.body;
   if (!originalUrl) throw new ApiError(422, "url can't be empty");
 
   const url = await Url.findOne({ originalUrl });
@@ -22,6 +22,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
       urlId,
       originalUrl,
       shortenUrl,
+      expiresIn,
       isLoggedIn: req?.user?._id ? true : false,
       owner: req?.user?._id,
     });
