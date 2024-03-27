@@ -1,19 +1,22 @@
 import { nanoid, customAlphabet } from "nanoid";
 import QRCode from "qrcode";
 import getMetaData from "metadata-scraper";
-// import { promises as dnsPromises } from "dns";
+import mongoose from "mongoose";
 import { getDnsRecords } from "@layered/dns-records";
 
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Url } from "../../models/url.model.js";
+import { Analytics } from "../../models/analytics.model.js";
+import { User } from "../../models/user.model.js";
+import { getMongoosePaginationOptions } from "../utils/helper.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
   const { originalUrl, expiresIn } = req.body;
   if (!originalUrl) throw new ApiError(422, "url can't be empty");
 
-  const url = await Url.findOne({ originalUrl });
+  const url = await Url.findOne({ originalUrl, owner: req.user._id });
   const urlId = nanoid(5);
   const shortenUrl = `${process.env.BASE_URL}/${urlId}`;
   if (!shortenUrl)
@@ -53,11 +56,12 @@ const redirectUrl = asyncHandler(async (req, res) => {
   if (!url) throw new ApiError(422, "url doesn't exists");
 
   url.clicks++;
-  url.analytics.push({
+  await Analytics.create({
     useragent: req.useragent.source,
     browser: req.useragent.browser,
     device: req.useragent.isMobile ? "Mobile" : "Desktop",
     platform: req.useragent.platform,
+    url: url?._id,
   });
   await url.save();
   return res.redirect(url.originalUrl);
@@ -207,6 +211,46 @@ const customDomain = asyncHandler(async (req, res) => {
   }, 20000);
 });
 
+const getUserUrls = asyncHandler(async (req, res) => {
+  const { page, limit } = req.params;
+
+  const urlAggregate = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req?._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "urls",
+        localField: "_id",
+        foreignField: "owner",
+        as: "urls",
+      },
+    },
+    {
+      $project: {
+        urls: 1,
+      },
+    },
+  ]);
+
+  const urls = await Url.aggregatePaginate(
+    urlAggregate,
+    getMongoosePaginationOptions({
+      page,
+      limit,
+      customLabels: {
+        totalDocs: "allUrls",
+        docs: "urls",
+      },
+    })
+  );
+  return res
+    .status(201)
+    .json(new ApiResponse(200, urls, "urls fetched successfully"));
+});
+
 export {
   generateShortUrl,
   redirectUrl,
@@ -215,4 +259,5 @@ export {
   updateBackHalf,
   urlMetaData,
   customDomain,
+  getUserUrls,
 };
