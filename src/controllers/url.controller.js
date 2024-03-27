@@ -207,7 +207,7 @@ const customDomain = asyncHandler(async (req, res) => {
     } catch (err) {
       console.log(500, err?.message);
     }
-  }, );
+  }, 20000);
 });
 
 export {
