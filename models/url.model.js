@@ -19,20 +19,6 @@ const urlSchema = new Schema(
     shortenUrl: {
       type: String,
     },
-    clicks: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    os: {
-      type: [],
-    },
-    device: {
-      type: [],
-    },
-    browser: {
-      type: [],
-    },
     qrcode: {
       type: String,
     },

@@ -8,6 +8,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Url } from "../../models/url.model.js";
+import { Stat } from "../../models/stat.model.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
   const { originalUrl, expiresIn } = req.body;
@@ -49,22 +50,18 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 const redirectUrl = asyncHandler(async (req, res) => {
   const { urlId } = req.params;
 
-  const urlExists = await Url.findOne({ urlId });
-  if (!urlExists) throw new ApiError(422, "url doesn't exists");
+  const url = await Url.findOne({ urlId });
+  if (!url) throw new ApiError(422, "url doesn't exists");
+  
+  await Stat.create({
+    urlId: url._id,
+    os: os.type(),
+    device: os.machine(),
+    $inc: { clicks: 1 },
+    browser: req.headers["user-agent"],
+  });
 
-  await Url.updateOne(
-    {
-      urlId,
-    },
-    {
-      $inc: { clicks: 1 },
-      os: os.type(),
-      device: os.hostname(),
-      browser: req.headers["user-agent"],
-    }
-  );
-
-  return res.redirect(urlExists.originalUrl);
+  return res.redirect(url.originalUrl);
 });
 
 const generateQrCode = asyncHandler(async (req, res) => {
