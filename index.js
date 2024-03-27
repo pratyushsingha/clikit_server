@@ -1,7 +1,14 @@
-process.loadEnvFile();
+// supports node js 21
+// process.loadEnvFile();
+
+// for node js 20
+import dotenv from "dotenv";
 import { app } from "./app.js";
 import connectDB from "./src/db/index.js";
 
+dotenv.config({
+  path: "./env",
+});
 
 const PORT = process.env.PORT || 3000;
 
