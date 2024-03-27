@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const defaultExpiry = () => {
   const currentDate = new Date();
@@ -34,18 +35,6 @@ const urlSchema = new Schema(
       type: Number,
       default: 0,
     },
-    analytics: {
-      type: [
-        {
-          timestamp: { type: Date, default: Date.now },
-          ipAddress: String,
-          userAgent: String,
-          browser: String,
-          device: String,
-          platform: String,
-        },
-      ],
-    },
     owner: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -55,5 +44,6 @@ const urlSchema = new Schema(
     timestamps: true,
   }
 );
+urlSchema.plugin(mongooseAggregatePaginate);
 
 export const Url = mongoose.model("Url", urlSchema);
