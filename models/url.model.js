@@ -24,6 +24,15 @@ const urlSchema = new Schema(
       required: true,
       default: 0,
     },
+    os: {
+      type: [],
+    },
+    device: {
+      type: [],
+    },
+    browser: {
+      type: [],
+    },
     qrcode: {
       type: String,
     },

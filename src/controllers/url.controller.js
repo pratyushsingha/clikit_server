@@ -1,5 +1,8 @@
-import { nanoid } from "nanoid";
+import { nanoid, customAlphabet } from "nanoid";
 import QRCode from "qrcode";
+import getMetaData from "metadata-scraper";
+import { promises as dnsPromises } from "dns";
+import os from "node:os";
 
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
@@ -26,18 +29,18 @@ const generateShortUrl = asyncHandler(async (req, res) => {
       isLoggedIn: req?.user?._id ? true : false,
       owner: req?.user?._id,
     });
-  }
-  generatedUrl = await Url.findByIdAndUpdate(
-    url._id,
-    {
-      $set: {
-        urlId,
-        shortenUrl,
+  } else {
+    generatedUrl = await Url.findByIdAndUpdate(
+      url?._id,
+      {
+        $set: {
+          urlId,
+          shortenUrl,
+        },
       },
-    },
-    { new: true }
-  );
-
+      { new: true }
+    );
+  }
   return res
     .status(201)
     .json(new ApiResponse(200, generatedUrl, "url shorten successfully"));
@@ -53,7 +56,12 @@ const redirectUrl = asyncHandler(async (req, res) => {
     {
       urlId,
     },
-    { $inc: { clicks: 1 } }
+    {
+      $inc: { clicks: 1 },
+      os: os.type(),
+      device: os.hostname(),
+      browser: req.headers["user-agent"],
+    }
   );
 
   return res.redirect(urlExists.originalUrl);
@@ -145,10 +153,69 @@ const updateBackHalf = asyncHandler(async (req, res) => {
     );
 });
 
+const urlMetaData = asyncHandler(async (req, res) => {
+  const { _id } = req.body;
+  if (!id) throw new ApiError(422, "url id is required");
+
+  const url = await Url.findById(_id);
+  if (!url) throw new ApiError(400, "url doesn't exists");
+  try {
+    const metadata = await getMetaData(url.originalUrl);
+    return res
+      .status(201)
+      .json(new ApiResponse(200, metadata, "metadata fetched successfully"));
+  } catch (err) {
+    throw new ApiError(500, err?.message);
+  }
+});
+
+const customDomain = asyncHandler(async (req, res) => {
+  const { domain, _id } = req.body;
+  const veificationCode = customAlphabet(
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ=_?",
+    16
+  );
+  console.log(veificationCode(), domain);
+  setInterval(async () => {
+    try {
+      const dnsRecords = await dnsPromises.resolve(domain, "TXT");
+      console.log(dnsRecords);
+      const verify = dnsRecords.some((dnsRecord) =>
+        dnsRecord.includes(veificationCode)
+      );
+      console.log(verify);
+      // console.log("dns", dnsRecords);
+      if (verify) {
+        const url = await Url.findById(_id);
+        const CustomShortUrl = await Url.findByIdAndDelete(
+          _id,
+          {
+            $set: {
+              shortenUrl: `${domain}/${url.urlId}`,
+            },
+          },
+          { new: true }
+        );
+        object;
+        return res
+          .status(200)
+          .json(
+            new ApiResponse(201, CustomShortUrl, "url updated successfully")
+          );
+      }
+      console.log("falied to verify ownership");
+    } catch (err) {
+      console.log(500, err?.message);
+    }
+  }, );
+});
+
 export {
   generateShortUrl,
   redirectUrl,
   generateQrCode,
   deleteShortUrl,
   updateBackHalf,
+  urlMetaData,
+  customDomain,
 };
