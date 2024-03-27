@@ -30,6 +30,22 @@ const urlSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    clicks: {
+      type: Number,
+      default: 0,
+    },
+    analytics: {
+      type: [
+        {
+          timestamp: { type: Date, default: Date.now },
+          ipAddress: String,
+          userAgent: String,
+          browser: String,
+          device: String,
+          platform: String,
+        },
+      ],
+    },
     owner: {
       type: Schema.Types.ObjectId,
       ref: "User",

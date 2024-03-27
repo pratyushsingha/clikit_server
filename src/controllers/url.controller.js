@@ -1,14 +1,13 @@
 import { nanoid, customAlphabet } from "nanoid";
 import QRCode from "qrcode";
 import getMetaData from "metadata-scraper";
-import { promises as dnsPromises } from "dns";
-import os from "node:os";
+// import { promises as dnsPromises } from "dns";
+import { getDnsRecords } from "@layered/dns-records";
 
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Url } from "../../models/url.model.js";
-import { Stat } from "../../models/stat.model.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
   const { originalUrl, expiresIn } = req.body;
@@ -52,15 +51,15 @@ const redirectUrl = asyncHandler(async (req, res) => {
 
   const url = await Url.findOne({ urlId });
   if (!url) throw new ApiError(422, "url doesn't exists");
-  
-  await Stat.create({
-    urlId: url._id,
-    os: os.type(),
-    device: os.machine(),
-    $inc: { clicks: 1 },
-    browser: req.headers["user-agent"],
-  });
 
+  url.clicks++;
+  url.analytics.push({
+    useragent: req.useragent.source,
+    browser: req.useragent.browser,
+    device: req.useragent.isMobile ? "Mobile" : "Desktop",
+    platform: req.useragent.platform,
+  });
+  await url.save();
   return res.redirect(url.originalUrl);
 });
 
@@ -175,13 +174,15 @@ const customDomain = asyncHandler(async (req, res) => {
   console.log(veificationCode(), domain);
   setInterval(async () => {
     try {
-      const dnsRecords = await dnsPromises.resolve(domain, "TXT");
-      console.log(dnsRecords);
-      const verify = dnsRecords.some((dnsRecord) =>
+      const txtRecords = await getDnsRecords("pratyushsingha.tech", "TXT");
+      console.log(txtRecords);
+      // const dnsRecords = await dnsPromises.resolve(domain, "TXT");
+      // console.log(dnsRecords);
+      const verify = txtRecords.some((dnsRecord) =>
         dnsRecord.includes(veificationCode)
       );
       console.log(verify);
-      // console.log("dns", dnsRecords);
+      // // console.log("dns", dnsRecords);
       if (verify) {
         const url = await Url.findById(_id);
         const CustomShortUrl = await Url.findByIdAndDelete(
@@ -193,7 +194,6 @@ const customDomain = asyncHandler(async (req, res) => {
           },
           { new: true }
         );
-        object;
         return res
           .status(200)
           .json(
