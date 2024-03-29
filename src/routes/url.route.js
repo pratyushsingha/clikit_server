@@ -6,6 +6,8 @@ import {
   generateQrCode,
   generateShortUrl,
   getUserUrls,
+  linkAnalytics,
+  sevenDaysClickAnalytics,
   updateBackHalf,
   urlMetaData,
 } from "../controllers/url.controller.js";
@@ -20,5 +22,7 @@ router.route("/back-half/:_id").patch(verifyJWT, updateBackHalf);
 router.route("/url-overview").get(verifyJWT, urlMetaData);
 router.route("/verify-domain").post(verifyJWT, customDomain);
 router.route("/my").get(verifyJWT, getUserUrls);
+router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
+router.route("/sevenDays/:_id").get(verifyJWT, sevenDaysClickAnalytics);
 
 export default router;
