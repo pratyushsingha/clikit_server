@@ -157,7 +157,7 @@ const updateBackHalf = asyncHandler(async (req, res) => {
 });
 
 const urlMetaData = asyncHandler(async (req, res) => {
-  const { _id } = req.body;
+  const { _id } = req.params;
   if (!_id) throw new ApiError(422, "url id is required");
 
   const url = await Url.findById(_id);
