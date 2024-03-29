@@ -55,7 +55,6 @@ const redirectUrl = asyncHandler(async (req, res) => {
   const url = await Url.findOne({ urlId });
   if (!url) throw new ApiError(422, "url doesn't exists");
 
-  url.clicks++;
   await Analytics.create({
     useragent: req.useragent.source,
     browser: req.useragent.browser,
@@ -85,7 +84,7 @@ const generateQrCode = asyncHandler(async (req, res) => {
       owner: req.user?._id,
     });
   }
-  generatedQrcode = await Url.findByIdAndUpdate(
+  generatedQrcode = await Url?.findByIdAndUpdate(
     url?._id,
     {
       $set: {
@@ -129,15 +128,19 @@ const updateBackHalf = asyncHandler(async (req, res) => {
   const url = await Url.findById(_id);
   if (!url) throw new ApiError(401, "url doesn't exists");
 
-  const updatedQrcode = await QRCode.toDataURL(url.originalUrl);
+  const urlExists = await Url.findOne({
+    shortenUrl: `${process.env.BASE_URL}/${urlId}`,
+  });
+
+  if (urlExists) {
+    throw new ApiError(422, "an url with this backhalf already exists");
+  }
 
   const updatedurlSchema = await Url.findByIdAndUpdate(
     _id,
     {
       $set: {
-        urlId,
         shortenUrl: `${process.env.BASE_URL}/${urlId}`,
-        qrcode: updatedQrcode,
       },
     },
     { new: true }
@@ -161,13 +164,20 @@ const urlMetaData = asyncHandler(async (req, res) => {
   if (!url) throw new ApiError(400, "url doesn't exists");
   try {
     const metadata = await getMetaData(url.originalUrl);
-    if (!metadata)
-      return res
-        .status(200)
-        .json(new ApiResponse(201, {}, "no metadata available"));
+    const icon = await Url.findByIdAndUpdate(
+      _id,
+      {
+        $set: {
+          logo:
+            metadata.icon ||
+            `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+        },
+      },
+      { new: true }
+    );
     return res
       .status(201)
-      .json(new ApiResponse(200, metadata, "metadata fetched successfully"));
+      .json(new ApiResponse(200, icon, "metadata fetched successfully"));
   } catch (err) {
     throw new ApiError(500, err?.message);
   }
