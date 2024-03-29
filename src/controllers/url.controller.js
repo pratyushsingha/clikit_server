@@ -161,6 +161,10 @@ const urlMetaData = asyncHandler(async (req, res) => {
   if (!url) throw new ApiError(400, "url doesn't exists");
   try {
     const metadata = await getMetaData(url.originalUrl);
+    if (!metadata)
+      return res
+        .status(200)
+        .json(new ApiResponse(201, {}, "no metadata available"));
     return res
       .status(201)
       .json(new ApiResponse(200, metadata, "metadata fetched successfully"));
@@ -178,7 +182,7 @@ const customDomain = asyncHandler(async (req, res) => {
   console.log(veificationCode(), domain);
   setInterval(async () => {
     try {
-      const txtRecords = await getDnsRecords("pratyushsingha.tech", "TXT");
+      const txtRecords = await getDnsRecords(domain, "TXT");
       console.log(txtRecords);
       // const dnsRecords = await dnsPromises.resolve(domain, "TXT");
       // console.log(dnsRecords);
