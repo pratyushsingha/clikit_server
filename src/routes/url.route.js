@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { validateUrl } from "../validators/url.validator.js";
+
 import {
   customDomain,
   deleteShortUrl,
@@ -15,8 +15,8 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/short").post(validateUrl(), verifyJWT, generateShortUrl);
-router.route("/qrcode").post(validateUrl(), verifyJWT, generateQrCode);
+router.route("/short").post(verifyJWT, generateShortUrl);
+router.route("/qrcode").post(verifyJWT, generateQrCode);
 router.route("/remove/:_id").delete(verifyJWT, deleteShortUrl);
 router.route("/back-half/:_id").patch(verifyJWT, updateBackHalf);
 router.route("/url-overview").get(verifyJWT, urlMetaData);

@@ -31,9 +31,8 @@ const urlSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    clicks: {
-      type: Number,
-      default: 0,
+    logo: {
+      type: String,
     },
     owner: {
       type: Schema.Types.ObjectId,
