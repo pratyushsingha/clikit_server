@@ -22,6 +22,6 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
     req.user = user;
     next();
   } catch (error) {
-    throw new ApiError(401, err?.message);
+    throw new ApiError(401, error?.message);
   }
 });
