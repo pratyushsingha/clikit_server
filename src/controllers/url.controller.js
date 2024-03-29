@@ -155,7 +155,7 @@ const updateBackHalf = asyncHandler(async (req, res) => {
 
 const urlMetaData = asyncHandler(async (req, res) => {
   const { _id } = req.body;
-  if (!id) throw new ApiError(422, "url id is required");
+  if (!_id) throw new ApiError(422, "url id is required");
 
   const url = await Url.findById(_id);
   if (!url) throw new ApiError(400, "url doesn't exists");
@@ -251,6 +251,231 @@ const getUserUrls = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, urls, "urls fetched successfully"));
 });
 
+const linkAnalytics = asyncHandler(async (req, res) => {
+  const { _id } = req.params;
+
+  const url = await Url.findById(_id);
+  if (!(url.owner.toString() === req.user._id.toString()))
+    throw new ApiError(400, "u are not the owner of this link");
+
+  const analytics = await Url.aggregate([
+    [
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(_id),
+        },
+      },
+      {
+        $lookup: {
+          from: "analytics",
+          localField: "_id",
+          foreignField: "url",
+          as: "analytics",
+        },
+      },
+      {
+        $unwind: "$analytics",
+      },
+      {
+        $group: {
+          _id: null,
+          totalVisits: { $sum: 1 },
+          browsers: { $addToSet: "$analytics.browser" },
+          devices: { $addToSet: "$analytics.device" },
+          platforms: { $addToSet: "$analytics.platform" },
+          mobileDevices: {
+            $addToSet: {
+              $cond: {
+                if: { $eq: ["$analytics.device", "Mobile"] },
+                then: "$analytics",
+                else: null,
+              },
+            },
+          },
+          iPhoneVisits: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$analytics.device", "Mobile"] },
+                then: {
+                  $cond: {
+                    if: { $eq: ["$analytics.platform", "iPhone"] },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+                else: 0,
+              },
+            },
+          },
+          androidVisits: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$analytics.device", "Mobile"] },
+                then: {
+                  $cond: {
+                    if: { $eq: ["$analytics.platform", "Android"] },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+                else: 0,
+              },
+            },
+          },
+          ipadVisits: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$analytics.device", "Mobile"] },
+                then: {
+                  $cond: {
+                    if: { $eq: ["$analytics.platform", "iPad"] },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+                else: 0,
+              },
+            },
+          },
+          desktopVisits: {
+            $addToSet: {
+              $cond: {
+                if: { $eq: ["$analytics.device", "Desktop"] },
+                then: "$analytics",
+                else: null,
+              },
+            },
+          },
+          linuxVisits: {
+            $sum: {
+              $cond: {
+                if: {
+                  $eq: ["$analytics.device", "Desktop"],
+                },
+                then: {
+                  $cond: {
+                    if: {
+                      $eq: ["$analytics.platform", "Linux"],
+                    },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+                else: 0,
+              },
+            },
+          },
+          windowsVisits: {
+            $sum: {
+              $cond: {
+                if: {
+                  $eq: ["$analytics.device", "Desktop"],
+                },
+                then: {
+                  $cond: {
+                    if: {
+                      $eq: ["$analytics.platform", "Microsoft Windows"],
+                    },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+                else: 0,
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalVisits: 1,
+          browsers: { $size: "$browsers" },
+          devices: { $size: "$devices" },
+          platforms: { $size: "$platforms" },
+          mobileDevices: { $size: "$mobileDevices" },
+          iPhoneVisits: 1,
+          androidVisits: 1,
+          ipadVisits: 1,
+          desktopVisits: { $size: "$desktopVisits" },
+          linuxVisits: 1,
+          windowsVisits: 1,
+        },
+      },
+    ],
+  ]);
+
+  if (!analytics)
+    throw new ApiError(500, "something went wrong while fetching the details");
+
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(200, analytics, "link analytics fetched successfully")
+    );
+});
+
+const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
+  const { _id } = req.params;
+
+  const url = await Url.findById(_id);
+  if (!(url.owner.toString() === req.user._id.toString()))
+    throw new ApiError(400, "u are not the owner of this link");
+
+  const currentDate = new Date();
+  let beforeSevenDayDate = new Date(currentDate);
+  beforeSevenDayDate.setDate(beforeSevenDayDate.getDate() - 7);
+  // console.log("current", currentDate, beforeSevenDayDate);
+
+  const clicksPerDay = await Url.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(_id),
+      },
+    },
+    {
+      $lookup: {
+        from: "analytics",
+        localField: "_id",
+        foreignField: "url",
+        as: "analytics",
+      },
+    },
+    {
+      $unwind: {
+        path: "$analytics",
+      },
+    },
+    {
+      $match: {
+        "analytics.createdAt": {
+          $lte: currentDate,
+          $gte: beforeSevenDayDate,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$analytics.createdAt" },
+        },
+        clicks: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $sort: {
+        "alanytics.createdAt": 1,
+      },
+    },
+  ]);
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, clicksPerDay, "analytics fetched successfully"));
+});
+
 export {
   generateShortUrl,
   redirectUrl,
@@ -260,4 +485,6 @@ export {
   urlMetaData,
   customDomain,
   getUserUrls,
+  linkAnalytics,
+  sevenDaysClickAnalytics,
 };
