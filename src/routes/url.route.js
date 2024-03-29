@@ -19,7 +19,7 @@ router.route("/short").post(verifyJWT, generateShortUrl);
 router.route("/qrcode").post(verifyJWT, generateQrCode);
 router.route("/remove/:_id").delete(verifyJWT, deleteShortUrl);
 router.route("/back-half/:_id").patch(verifyJWT, updateBackHalf);
-router.route("/url-overview").get(verifyJWT, urlMetaData);
+router.route("/metadata/:_id").get(verifyJWT, urlMetaData);
 router.route("/verify-domain").post(verifyJWT, customDomain);
 router.route("/my").get(verifyJWT, getUserUrls);
 router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
