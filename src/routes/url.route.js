@@ -9,17 +9,15 @@ import {
   linkAnalytics,
   sevenDaysClickAnalytics,
   updateBackHalf,
-  urlMetaData,
 } from "../controllers/url.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT, verifyUser } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/short").post(verifyJWT, generateShortUrl);
-router.route("/qrcode").post(verifyJWT, generateQrCode);
+router.route("/short").post(verifyUser, generateShortUrl);
+router.route("/qrcode/:_id").post(verifyUser, generateQrCode);
 router.route("/remove/:_id").delete(verifyJWT, deleteShortUrl);
 router.route("/back-half/:_id").patch(verifyJWT, updateBackHalf);
-router.route("/metadata/:_id").get(verifyJWT, urlMetaData);
 router.route("/verify-domain").post(verifyJWT, customDomain);
 router.route("/my").get(verifyJWT, getUserUrls);
 router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
