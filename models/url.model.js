@@ -11,6 +11,7 @@ const urlSchema = new Schema(
   {
     urlId: {
       type: String,
+      unique: true,
     },
     originalUrl: {
       type: String,

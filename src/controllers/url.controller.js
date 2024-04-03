@@ -15,38 +15,80 @@ import { getMongoosePaginationOptions } from "../utils/helper.js";
 const generateShortUrl = asyncHandler(async (req, res) => {
   const { originalUrl, expiresIn } = req.body;
   if (!originalUrl) throw new ApiError(422, "url can't be empty");
-
-  const url = await Url.findOne({ originalUrl, owner: req.user._id });
   const urlId = nanoid(5);
   const shortenUrl = `${process.env.BASE_URL}/${urlId}`;
   if (!shortenUrl)
     throw new ApiError(500, "something went wrong while looming the url");
 
-  let generatedUrl;
-  if (!url) {
-    generatedUrl = await Url.create({
+  const metadata = await getMetaData(originalUrl);
+  if (!metadata)
+    throw new ApiError(500, "something went wrong while fetching the metadata");
+
+  if (!req.user) {
+    const expiresIn = new Date(Date.now() + 30 * 60 * 1000);
+    const url = {
       urlId,
       originalUrl,
       shortenUrl,
       expiresIn,
-      isLoggedIn: req?.user?._id ? true : false,
-      owner: req?.user?._id,
+      logo:
+        metadata.icon ||
+        `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+      isLoggedIn: false,
+    };
+    const saveUrl = await Url.create({
+      urlId,
+      originalUrl,
+      shortenUrl,
+      expiresIn,
+      logo:
+        metadata.icon ||
+        `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+      isLoggedIn: false,
     });
+    if (!saveUrl)
+      throw new ApiError(
+        500,
+        "something went wrong while saving the url  locally"
+      );
+
+    return res
+      .status(201)
+      .json(new ApiResponse(200, saveUrl, "url shorten successfully"));
   } else {
-    generatedUrl = await Url.findByIdAndUpdate(
-      url?._id,
-      {
-        $set: {
-          urlId,
-          shortenUrl,
+    const url = await Url.findOne({
+      originalUrl,
+      owner: req.user._id,
+      isLoggedIn: true,
+    });
+
+    let generatedUrl;
+    if (!url) {
+      generatedUrl = await Url.create({
+        urlId,
+        originalUrl,
+        shortenUrl,
+        expiresIn,
+        isLoggedIn: true,
+        owner: req?.user?._id,
+        logo: metadata.icon,
+      });
+    } else {
+      generatedUrl = await Url.findByIdAndUpdate(
+        url?._id,
+        {
+          $set: {
+            urlId,
+            shortenUrl,
+          },
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
+    }
+    return res
+      .status(201)
+      .json(new ApiResponse(200, generatedUrl, "url shorten successfully"));
   }
-  return res
-    .status(201)
-    .json(new ApiResponse(200, generatedUrl, "url shorten successfully"));
 });
 
 const redirectUrl = asyncHandler(async (req, res) => {
@@ -55,33 +97,41 @@ const redirectUrl = asyncHandler(async (req, res) => {
   const url = await Url.findOne({ urlId });
   if (!url) throw new ApiError(422, "url doesn't exists");
 
-  await Analytics.create({
-    useragent: req.useragent.source,
-    browser: req.useragent.browser,
-    device: req.useragent.isMobile ? "Mobile" : "Desktop",
-    platform: req.useragent.platform,
-    url: url?._id,
-  });
-  await url.save();
-  return res.redirect(url.originalUrl);
+  if (new Date() > new Date(url.expiresIn)) {
+    await Url.deleteOne({ urlId });
+    return res.status(401).json(new ApiResponse(401, {}, "Link expired"));
+  } else {
+    if (url.isLoggedIn === true) {
+      await Analytics.create({
+        useragent: req.useragent.source,
+        browser: req.useragent.browser,
+        device: req.useragent.isMobile ? "Mobile" : "Desktop",
+        platform: req.useragent.platform,
+        url: url?._id,
+      });
+    }
+    return res.redirect(url.originalUrl);
+  }
 });
 
 const generateQrCode = asyncHandler(async (req, res) => {
-  const { originalUrl } = req.body;
-  if (!originalUrl) throw new ApiError(422, "url is required");
+  const { _id } = req.params;
+  if (!_id) throw new ApiError(422, "urlId is required");
 
-  const qrcode = await QRCode.toDataURL(originalUrl);
+  const url = await Url.findById(_id);
+
+  const qrcode = await QRCode.toDataURL(url?.originalUrl);
   if (!qrcode) {
     throw new ApiError(500, "something went wrong while generating qrcode");
   }
+
   let generatedQrcode;
-  const url = await Url.findOne({ originalUrl });
   if (!url) {
     generatedQrcode = await Url.create({
       qrcode,
       originalUrl,
       isLoggedIn: req?.user?._id ? true : false,
-      owner: req.user?._id,
+      owner: req.user?._id || null,
     });
   }
   generatedQrcode = await Url?.findByIdAndUpdate(
@@ -154,33 +204,6 @@ const updateBackHalf = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(201, updatedurlSchema, "back-half updated successfully")
     );
-});
-
-const urlMetaData = asyncHandler(async (req, res) => {
-  const { _id } = req.params;
-  if (!_id) throw new ApiError(422, "url id is required");
-
-  const url = await Url.findById(_id);
-  if (!url) throw new ApiError(400, "url doesn't exists");
-  try {
-    const metadata = await getMetaData(url.originalUrl);
-    const icon = await Url.findByIdAndUpdate(
-      _id,
-      {
-        $set: {
-          logo:
-            metadata.icon ||
-            `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
-        },
-      },
-      { new: true }
-    );
-    return res
-      .status(201)
-      .json(new ApiResponse(200, icon, "metadata fetched successfully"));
-  } catch (err) {
-    throw new ApiError(500, err?.message);
-  }
 });
 
 const customDomain = asyncHandler(async (req, res) => {
@@ -496,7 +519,6 @@ export {
   generateQrCode,
   deleteShortUrl,
   updateBackHalf,
-  urlMetaData,
   customDomain,
   getUserUrls,
   linkAnalytics,
