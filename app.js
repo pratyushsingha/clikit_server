@@ -5,6 +5,9 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import  Useragent  from "express-useragent";
 
+import { ApiError } from "./src/utils/ApiError.js";
+
+
 const app = express();
 app.use(
   cors({

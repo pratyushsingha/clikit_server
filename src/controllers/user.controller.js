@@ -160,4 +160,51 @@ const updateAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avatar image updated successfully"));
 });
 
-export { registerUser, loginUser, updateAvatar, logoutUser };
+const currentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user?._id).select(
+    "-password -refreshToken"
+  );
+  if (!user) {
+    new ApiError(404, "user not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "currentUser fetched successfully"));
+});
+
+const updateUserDetails = asyncHandler(async (req, res) => {
+  const { fullName } = req.body;
+  if (!fullName) throw new ApiError(422, "fullName is required");
+
+  const updateFullName = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updateFullName) throw new ApiError(409, "user doesn't exits");
+
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(
+        200,
+        updateUserDetails,
+        "userDetails updated successfully"
+      )
+    );
+});
+
+export {
+  registerUser,
+  loginUser,
+  updateAvatar,
+  logoutUser,
+  currentUser,
+  updateUserDetails,
+};

@@ -6,7 +6,7 @@ import mongoose from "mongoose";
  */
 export const getMongoosePaginationOptions = ({
   page = 1,
-  limit = 20,
+  limit = 10,
   customLabels,
 }) => {
   return {
