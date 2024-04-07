@@ -245,7 +245,7 @@ const customDomain = asyncHandler(async (req, res) => {
 });
 
 const getUserUrls = asyncHandler(async (req, res) => {
-  const { page, limit } = req.params;
+  const { page, limit } = req.query;
 
   const urlAggregate = await User.aggregate([
     {
@@ -571,6 +571,29 @@ const urlDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, url, "url fetched successfully"));
 });
 
+const searchUrls = asyncHandler(async (req, res) => {
+  const query = req.query.q;
+  const urls = await Url.find({
+    $and: [
+      {
+        $or: [
+          { originalUrl: { $regex: query, $options: "i" } },
+          {
+            shortenUrl: { $regex: query, $options: "i" },
+          },
+        ],
+      },
+      { owner: req.user._id },
+    ],
+  });
+  if (!urls) {
+    throw new ApiError(500, "something went wrong while getting urls");
+  } else {
+    res
+      .status(200)
+      .json(new ApiResponse(201, urls, "urls fetched suuccessfully"));
+  }
+});
 export {
   generateShortUrl,
   redirectUrl,
@@ -582,4 +605,5 @@ export {
   linkAnalytics,
   sevenDaysClickAnalytics,
   urlDetails,
+  searchUrls,
 };
