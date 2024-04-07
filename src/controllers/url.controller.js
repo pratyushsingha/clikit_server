@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import getMetaData from "metadata-scraper";
 import mongoose from "mongoose";
 import { getDnsRecords } from "@layered/dns-records";
+import dns from "dns";
 
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
@@ -13,7 +14,7 @@ import { User } from "../../models/user.model.js";
 import { getMongoosePaginationOptions } from "../utils/helper.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
-  const { originalUrl, expiresIn } = req.body;
+  const { originalUrl, expiredIn } = req.body;
   if (!originalUrl) throw new ApiError(422, "url can't be empty");
   const urlId = nanoid(5);
   const shortenUrl = `${process.env.BASE_URL}/${urlId}`;
@@ -25,22 +26,21 @@ const generateShortUrl = asyncHandler(async (req, res) => {
     throw new ApiError(500, "something went wrong while fetching the metadata");
 
   if (!req.user) {
-    const expiresIn = new Date(Date.now() + 30 * 60 * 1000);
-    const url = {
-      urlId,
-      originalUrl,
-      shortenUrl,
-      expiresIn,
-      logo:
-        metadata.icon ||
-        `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
-      isLoggedIn: false,
-    };
+    const url = [
+      {
+        urlId,
+        originalUrl,
+        shortenUrl,
+        logo:
+          metadata.icon ||
+          `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+        isLoggedIn: false,
+      },
+    ];
     const saveUrl = await Url.create({
       urlId,
       originalUrl,
       shortenUrl,
-      expiresIn,
       logo:
         metadata.icon ||
         `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
@@ -54,7 +54,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 
     return res
       .status(201)
-      .json(new ApiResponse(200, saveUrl, "url shorten successfully"));
+      .json(new ApiResponse(200, [saveUrl], "url shorten successfully"));
   } else {
     const url = await Url.findOne({
       originalUrl,
@@ -68,7 +68,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
         urlId,
         originalUrl,
         shortenUrl,
-        expiresIn,
+        expiredIn,
         isLoggedIn: true,
         owner: req?.user?._id,
         logo: metadata.icon,
@@ -87,7 +87,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
     }
     return res
       .status(201)
-      .json(new ApiResponse(200, generatedUrl, "url shorten successfully"));
+      .json(new ApiResponse(200, [generatedUrl], "url shorten successfully"));
   }
 });
 
@@ -191,6 +191,7 @@ const updateBackHalf = asyncHandler(async (req, res) => {
     {
       $set: {
         shortenUrl: `${process.env.BASE_URL}/${urlId}`,
+        urlId,
       },
     },
     { new: true }
@@ -206,46 +207,41 @@ const updateBackHalf = asyncHandler(async (req, res) => {
     );
 });
 
+// function generateVerificationTxt() {
+//   const alphabet =
+//     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+//   const nanoid = customAlphabet(alphabet, 16);
+//   return nanoid();
+// }
+
 const customDomain = asyncHandler(async (req, res) => {
   const { domain, _id } = req.body;
-  const veificationCode = customAlphabet(
-    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ=_?",
-    16
-  );
-  console.log(veificationCode(), domain);
-  setInterval(async () => {
-    try {
-      const txtRecords = await getDnsRecords(domain, "TXT");
-      console.log(txtRecords);
-      // const dnsRecords = await dnsPromises.resolve(domain, "TXT");
-      // console.log(dnsRecords);
-      const verify = txtRecords.some((dnsRecord) =>
-        dnsRecord.includes(veificationCode)
-      );
-      console.log(verify);
-      // // console.log("dns", dnsRecords);
-      if (verify) {
-        const url = await Url.findById(_id);
-        const CustomShortUrl = await Url.findByIdAndDelete(
-          _id,
-          {
-            $set: {
-              shortenUrl: `${domain}/${url.urlId}`,
-            },
-          },
-          { new: true }
-        );
-        return res
-          .status(200)
-          .json(
-            new ApiResponse(201, CustomShortUrl, "url updated successfully")
-          );
-      }
-      console.log("falied to verify ownership");
-    } catch (err) {
-      console.log(500, err?.message);
+
+  try {
+    const dnsPromises = dns.promises;
+    const dnsRecords = await dnsPromises.resolve4(domain);
+
+    if (dnsRecords.length > 0) {
+      return res.status(200).json({
+        success: true,
+        ipv4Addresses: dnsRecords,
+        message:
+          "IPv4 addresses resolved successfully. Add these addresses to your DNS portal.",
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No IPv4 addresses found for the domain. Make sure the domain is correctly configured.",
+      });
     }
-  }, 20000);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resolve IPv4 addresses. Please try again later.",
+    });
+  }
 });
 
 const getUserUrls = asyncHandler(async (req, res) => {
@@ -254,7 +250,7 @@ const getUserUrls = asyncHandler(async (req, res) => {
   const urlAggregate = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req?._id),
+        _id: new mongoose.Types.ObjectId(req._id),
       },
     },
     {
@@ -263,6 +259,13 @@ const getUserUrls = asyncHandler(async (req, res) => {
         localField: "_id",
         foreignField: "owner",
         as: "urls",
+        pipeline: [
+          {
+            $match: {
+              isLoggedIn: true,
+            },
+          },
+        ],
       },
     },
     {
@@ -292,7 +295,7 @@ const linkAnalytics = asyncHandler(async (req, res) => {
   const { _id } = req.params;
 
   const url = await Url.findById(_id);
-  if (!(url.owner.toString() === req.user._id.toString()))
+  if (!(url.owner?.toString() === req.user._id.toString()))
     throw new ApiError(400, "u are not the owner of this link");
 
   const analytics = await Url.aggregate([
@@ -421,6 +424,24 @@ const linkAnalytics = asyncHandler(async (req, res) => {
               },
             },
           },
+          chromeVisits: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$analytics.browser", "Chrome"] },
+                then: 1,
+                else: 0,
+              },
+            },
+          },
+          safariClicks: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$analytics.browser", "Safari"] },
+                then: 1,
+                else: 0,
+              },
+            },
+          },
         },
       },
       {
@@ -437,6 +458,8 @@ const linkAnalytics = asyncHandler(async (req, res) => {
           desktopVisits: { $size: "$desktopVisits" },
           linuxVisits: 1,
           windowsVisits: 1,
+          chromeVisits: 1,
+          safariClicks: 1,
         },
       },
     ],
@@ -444,6 +467,29 @@ const linkAnalytics = asyncHandler(async (req, res) => {
 
   if (!analytics)
     throw new ApiError(500, "something went wrong while fetching the details");
+
+  // const operatingSystemViews = analytics.map(
+  //   ({ linuxVisits, windowsVisits }) => ({
+  //     linuxVisits,
+  //     windowsVisits,
+  //     androidVisits: analytics[0].androidVisits,
+  //   })
+  // );
+
+  // const deviceViews = analytics.map(
+  //   ({ mobileDevices, ipadVisits, desktopVisits }) => ({
+  //     mobileDevices,
+  //     ipadVisits,
+  //     desktopVisits,
+  //   })
+  // );
+
+  // const analyticsData = [
+  //   { operatingSystemViews: operatingSystemViews },
+  //   { deviceClicks: deviceViews },
+  //   { chromeVisits: analytics[0].chromeVisits },
+  //   { totalVisits: analytics[0].totalVisits },
+  // ];
 
   return res
     .status(201)
@@ -456,13 +502,13 @@ const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
   const { _id } = req.params;
 
   const url = await Url.findById(_id);
-  if (!(url.owner.toString() === req.user._id.toString()))
+  if (!(url?.owner?.toString() === req.user?._id.toString()))
     throw new ApiError(400, "u are not the owner of this link");
 
   const currentDate = new Date();
   let beforeSevenDayDate = new Date(currentDate);
   beforeSevenDayDate.setDate(beforeSevenDayDate.getDate() - 7);
-  // console.log("current", currentDate, beforeSevenDayDate);
+  console.log("current", currentDate, beforeSevenDayDate);
 
   const clicksPerDay = await Url.aggregate([
     {
@@ -503,7 +549,7 @@ const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
     },
     {
       $sort: {
-        "alanytics.createdAt": 1,
+        "analytics.createdAt": -1,
       },
     },
   ]);
@@ -511,6 +557,18 @@ const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
   return res
     .status(201)
     .json(new ApiResponse(200, clicksPerDay, "analytics fetched successfully"));
+});
+
+const urlDetails = asyncHandler(async (req, res) => {
+  const { _id } = req.params;
+  if (!_id) throw new ApiError(422, "_id is required");
+
+  const url = await Url.findById(_id);
+  if (!url) throw new ApiError(401, "url doesn't exists");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, url, "url fetched successfully"));
 });
 
 export {
@@ -523,4 +581,5 @@ export {
   getUserUrls,
   linkAnalytics,
   sevenDaysClickAnalytics,
+  urlDetails,
 };

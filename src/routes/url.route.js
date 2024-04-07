@@ -9,6 +9,7 @@ import {
   linkAnalytics,
   sevenDaysClickAnalytics,
   updateBackHalf,
+  urlDetails,
 } from "../controllers/url.controller.js";
 import { verifyJWT, verifyUser } from "../middlewares/auth.middleware.js";
 
@@ -22,5 +23,6 @@ router.route("/verify-domain").post(verifyJWT, customDomain);
 router.route("/my").get(verifyJWT, getUserUrls);
 router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
 router.route("/sevenDays/:_id").get(verifyJWT, sevenDaysClickAnalytics);
+router.route("/details/:_id").get(verifyJWT, urlDetails);
 
 export default router;
