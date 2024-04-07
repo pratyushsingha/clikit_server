@@ -7,6 +7,7 @@ import {
   generateShortUrl,
   getUserUrls,
   linkAnalytics,
+  searchUrls,
   sevenDaysClickAnalytics,
   updateBackHalf,
   urlDetails,
@@ -24,5 +25,6 @@ router.route("/my").get(verifyJWT, getUserUrls);
 router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
 router.route("/sevenDays/:_id").get(verifyJWT, sevenDaysClickAnalytics);
 router.route("/details/:_id").get(verifyJWT, urlDetails);
+router.route("/search").get(verifyJWT,searchUrls);
 
 export default router;
