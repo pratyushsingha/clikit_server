@@ -26,17 +26,17 @@ const generateShortUrl = asyncHandler(async (req, res) => {
     throw new ApiError(500, "something went wrong while fetching the metadata");
 
   if (!req.user) {
-    const url = [
-      {
-        urlId,
-        originalUrl,
-        shortenUrl,
-        logo:
-          metadata.icon ||
-          `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
-        isLoggedIn: false,
-      },
-    ];
+    // const url = [
+    //   {
+    //     urlId,
+    //     originalUrl,
+    //     shortenUrl,
+    //     logo:
+    //       metadata.icon ||
+    //       `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+    //     isLoggedIn: false,
+    //   },
+    // ];
     const saveUrl = await Url.create({
       urlId,
       originalUrl,
@@ -510,7 +510,14 @@ const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
   beforeSevenDayDate.setDate(beforeSevenDayDate.getDate() - 7);
   console.log("current", currentDate, beforeSevenDayDate);
 
-  const clicksPerDay = await Url.aggregate([
+  const sevenDays = [];
+  for (let i = 1; i <= 7; i++) {
+    const date = new Date(beforeSevenDayDate);
+    date.setDate(date.getDate() + i);
+    sevenDays.push(date);
+  }
+
+  const analyticsAggregation = await Url.aggregate([
     {
       $match: {
         _id: new mongoose.Types.ObjectId(_id),
@@ -554,9 +561,21 @@ const sevenDaysClickAnalytics = asyncHandler(async (req, res) => {
     },
   ]);
 
+  const sevenDaysAnalytics = sevenDays.map((day) => {
+    const date = day.toISOString().split("T")[0];
+
+    const clicks = analyticsAggregation.find((click) => click._id === date);
+    return {
+      _id: date,
+      clicks: clicks ? clicks.clicks : 0,
+    };
+  });
+
   return res
     .status(201)
-    .json(new ApiResponse(200, clicksPerDay, "analytics fetched successfully"));
+    .json(
+      new ApiResponse(200, sevenDaysAnalytics, "analytics fetched successfully")
+    );
 });
 
 const urlDetails = asyncHandler(async (req, res) => {
