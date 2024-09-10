@@ -1,1 +1,1 @@
-export const DB_NAME = "linkLoom";
+export const DB_NAME = "tinytap";

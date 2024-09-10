@@ -3,10 +3,9 @@ import cors from "cors";
 import requestIp from "request-ip";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import  Useragent  from "express-useragent";
+import Useragent from "express-useragent";
 
 import { ApiError } from "./src/utils/ApiError.js";
-
 
 const app = express();
 app.use(
@@ -15,6 +14,18 @@ app.use(
     credentials: true,
   })
 );
+
+app.use((req, res, next) => {
+  const originalSend = res.send;
+  res.send = function (body) {
+    console.log("Status Code:", res.statusCode); // Log the status code
+    if (res.statusCode < 100 || res.statusCode > 599) {
+      res.statusCode = 500; // Set to 500 if invalid
+    }
+    return originalSend.call(this, body);
+  };
+  next();
+});
 
 app.use(requestIp.mw());
 const limiter = rateLimit({
@@ -46,10 +57,12 @@ import urlRouter from "./src/routes/url.route.js";
 import linkRouter from "./src/routes/link.route.js";
 import userRouter from "./src/routes/user.route.js";
 import healthCheckRouter from "./src/routes/healthcheck.route.js";
+import domainRouter from "./src/routes/domain.route.js";
 
 app.use("/api/v1/url", urlRouter);
 app.use("/", linkRouter);
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/domain", domainRouter);
 app.use("/api/v1/", healthCheckRouter);
 
 export { app };

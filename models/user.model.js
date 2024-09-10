@@ -22,6 +22,17 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
+    domain: {
+      type: String,
+    },
+    isDomainVerified: {
+      type: Boolean,
+    },
+    txtRecord: {
+      name: String,
+      recordType: String,
+      value: String,
+    },
     refreshToken: {
       type: String,
     },
@@ -68,6 +79,5 @@ userSchema.methods.generateRefreshToken = function () {
 };
 
 userSchema.plugin(mongooseAggregatePaginate);
-
 
 export const User = mongoose.model("User", userSchema);
