@@ -13,6 +13,10 @@ const urlSchema = new Schema(
       type: String,
       unique: true,
     },
+    domainId: {
+      type: Schema.Types.ObjectId,
+      ref: "Domain",
+    },
     originalUrl: {
       type: String,
       required: true,
@@ -22,6 +26,9 @@ const urlSchema = new Schema(
       type: String,
     },
     qrcode: {
+      type: String,
+    },
+    customUrl: {
       type: String,
     },
     expiredIn: {

@@ -1,8 +1,7 @@
-import { nanoid, customAlphabet } from "nanoid";
+import { nanoid } from "nanoid";
 import QRCode from "qrcode";
 import getMetaData from "metadata-scraper";
 import mongoose from "mongoose";
-import { getDnsRecords } from "@layered/dns-records";
 import dns from "dns";
 
 import { ApiError } from "../utils/ApiError.js";
@@ -12,6 +11,7 @@ import { Url } from "../../models/url.model.js";
 import { Analytics } from "../../models/analytics.model.js";
 import { User } from "../../models/user.model.js";
 import { getMongoosePaginationOptions } from "../utils/helper.js";
+import { Domain } from "../../models/domain.model.js";
 
 const generateShortUrl = asyncHandler(async (req, res) => {
   const { originalUrl, expiredIn } = req.body;
@@ -92,7 +92,17 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 });
 
 const redirectUrl = asyncHandler(async (req, res) => {
-  const { urlId } = req.params;
+  const host = req.hostname;
+  const { urlId } = req.params.urlId;
+  console.log(host)
+
+  const customDomain = await Domain.findOne({ url: host });
+
+  const shortenUrl = await Url.findOne({
+    _id: customDomain._id,
+    domainId: urlId,
+  });
+  return res.redirect(301, shortenUrl.originalUrl);
 
   const url = await Url.findOne({ urlId });
   if (!url) throw new ApiError(422, "url doesn't exists");
@@ -613,6 +623,55 @@ const searchUrls = asyncHandler(async (req, res) => {
       .json(new ApiResponse(201, urls, "urls fetched suuccessfully"));
   }
 });
+
+const generateCustomUrl = asyncHandler(async (req, res) => {
+  const { originalUrl, backhalf, expiredIn } = req.body;
+  const { domainId } = req.params;
+
+  if (!originalUrl) {
+    throw new ApiError(422, "URL can't be empty");
+  }
+  if (!domainId) {
+    throw new ApiError(422, "Domain ID is required");
+  }
+
+  const domain = await Domain.findById(domainId);
+  if (!domain) {
+    throw new ApiError(422, "Domain not found");
+  }
+
+  const urlId = nanoid(5);
+  const generatedShortenUrl = `${process.env.BASE_URL}/${urlId}`;
+
+  let brandedShortenUrl;
+  if (backhalf) {
+    brandedShortenUrl = `${domain.url}/${backhalf}`;
+  } else {
+    brandedShortenUrl = `${domain.url}/${urlId}`;
+  }
+
+  const metadata = await getMetaData(originalUrl);
+  if (!metadata) {
+    throw new ApiError(500, "Something went wrong while fetching the metadata");
+  }
+
+  const saveUrl = await Url.create({
+    urlId,
+    originalUrl,
+    shortenUrl: generatedShortenUrl,
+    customUrl: brandedShortenUrl,
+    expiredIn,
+    logo: metadata.icon || `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+    isLoggedIn: true,
+    domainId,
+  });
+
+  // Send response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, saveUrl, "URL shortened successfully"));
+});
+
 export {
   generateShortUrl,
   redirectUrl,
@@ -625,4 +684,5 @@ export {
   sevenDaysClickAnalytics,
   urlDetails,
   searchUrls,
+  generateCustomUrl,
 };

@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   customDomain,
   deleteShortUrl,
+  generateCustomUrl,
   generateQrCode,
   generateShortUrl,
   getUserUrls,
@@ -16,6 +17,7 @@ import { verifyJWT, verifyUser } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+router.route("/short/:domainId").post(verifyJWT, generateCustomUrl);
 router.route("/short").post(verifyUser, generateShortUrl);
 router.route("/qrcode/:_id").post(verifyUser, generateQrCode);
 router.route("/remove/:_id").delete(verifyJWT, deleteShortUrl);
@@ -25,6 +27,6 @@ router.route("/my").get(verifyJWT, getUserUrls);
 router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
 router.route("/sevenDays/:_id").get(verifyJWT, sevenDaysClickAnalytics);
 router.route("/details/:_id").get(verifyJWT, urlDetails);
-router.route("/search").get(verifyJWT,searchUrls);
+router.route("/search").get(verifyJWT, searchUrls);
 
 export default router;
