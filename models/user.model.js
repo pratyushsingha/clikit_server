@@ -22,19 +22,13 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
-    domain: {
-      type: String,
-    },
-    isDomainVerified: {
-      type: Boolean,
-    },
-    txtRecord: {
-      name: String,
-      recordType: String,
-      value: String,
-    },
     refreshToken: {
       type: String,
+    },
+    userType: {
+      type: String,
+      enum: ["free", "premium"],
+      default: "free",
     },
   },
   { timestamps: true }

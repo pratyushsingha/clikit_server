@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@layered/dns-records": "^2.0.0-beta.9",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.0.3",
     "cookie-parser": "^1.4.6",
