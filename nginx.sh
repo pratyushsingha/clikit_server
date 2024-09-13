@@ -2,12 +2,8 @@
 
 DOMAIN=$1
 BACKEND_SERVICE=$2
-EMAIL="pratyushsingha83@gmail.com"
+EMAIL=$3
 
-if [ -z "$DOMAIN" ] || [ -z "$BACKEND_SERVICE" ]; then
-    echo "Usage: $0 <domain> <backend_service>"
-    exit 1
-fi
 
 if ! [ -x "$(command -v certbot)" ]; then
     echo "Certbot not found. Installing Certbot..."
@@ -26,26 +22,18 @@ fi
 
 TMP_CONF=$(mktemp)
 
-cat <<EOL >> $TMP_CONF
+cat <<EOL > $TMP_CONF
 server {
     listen 80;
     server_name $DOMAIN;
 
     location / {
         proxy_pass $BACKEND_SERVICE;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    # Handle custom shortened URLs
-    location ~ ^/([a-zA-Z0-9_-]+)$ {
-        proxy_pass $BACKEND_SERVICE;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
     }
 }
 EOL
@@ -56,13 +44,14 @@ sudo awk -v file="$TMP_CONF" '
         system("cat " file);
         next;
     }
-    { print }' /etc/nginx/nginx.conf > /etc/nginx/nginx.conf.new
+    { print }' /etc/nginx/nginx.conf >/etc/nginx/nginx.conf.new
 
 sudo mv /etc/nginx/nginx.conf.new /etc/nginx/nginx.conf
 
 rm $TMP_CONF
 
-sudo nginx -t
+
+sudo nginx -t || { echo "Nginx configuration test failed"; exit 1; }
 
 sudo systemctl reload nginx
 
@@ -76,3 +65,4 @@ fi
 sudo systemctl reload nginx
 
 echo "Configuration for $DOMAIN added successfully with SSL."
+

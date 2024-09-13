@@ -45,19 +45,6 @@ const addDomain = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Unable to save domain");
   }
 
-  // try {
-  //   await execPromise(`./nginx.sh ${domain}`);
-  //   console.log(`${domain} added to nginx config`);
-  // } catch (error) {
-  //   console.error(
-  //     `error while adding the domain in nginx config ${error.message}`
-  //   );
-  //   throw new ApiError(
-  //     500,
-  //     `error while adding the domain in nginx config ${error.message}`
-  //   );
-  // }
-
   res.status(201).json(
     new ApiResponse(
       200,
@@ -78,7 +65,6 @@ const verifyDomainOwnership = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Domain ID is required");
   }
 
-  console.log(domainId);
   const domain = await Domain.findById(domainId);
   if (!domain) {
     throw new ApiError(404, "Domain not found");
@@ -89,11 +75,24 @@ const verifyDomainOwnership = asyncHandler(async (req, res) => {
   }
 
   try {
-    const records = await resolveCname(domain.url.split("//")[1]);
-    if (records.includes(process.env.CNAME_TARGET)) {
+    const records = await resolveCname(domain.url);
+    if (records.includes(`${process.env.CNAME_TARGET}`)) {
       domain.isDomainVerified = true;
       await domain.save();
-
+      try {
+        await execPromise(
+          `sudo ${process.env.NGINX_SCRIPT_FILE_PATH} ${domain.url} ${process.env.BACKEND_SERVICE} ${process.env.CERTBOT_EMAIL}`
+        );
+        console.log(`${domain.url} added to nginx config`);
+      } catch (error) {
+        console.error(
+          `error while adding the domain in nginx config ${error.message}`
+        );
+        throw new ApiError(
+          500,
+          `error while adding the domain in nginx config ${error.message}`
+        );
+      }
       return res
         .status(200)
         .json(
@@ -104,22 +103,22 @@ const verifyDomainOwnership = asyncHandler(async (req, res) => {
           )
         );
     } else {
-      console.log("Verification failed: Token not found");
+      console.log("Verification failed: CNAME target not found");
       return res
         .status(400)
         .json(
           new ApiResponse(
             400,
             { isDomainVerified: false },
-            "Token not found... try again later"
+            "CNAME target not found... try again later"
           )
         );
     }
   } catch (err) {
-    console.error("Failed to resolve TXT records:", err);
+    console.error("Failed to resolve CNAME records:", err);
     return res
       .status(500)
-      .json(new ApiResponse(500, null, "Failed to resolve TXT records"));
+      .json(new ApiResponse(500, null, "Failed to resolve CNAME records"));
   }
 });
 
