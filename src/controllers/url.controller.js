@@ -92,7 +92,6 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 });
 
 const redirectUrl = asyncHandler(async (req, res) => {
-  console.log(req);
   const { urlId } = req.params;
   const url = await Url.findOne({ urlId }).populate("domainId");
   if (!url) throw new ApiError(422, "url doesn't exists");
@@ -111,11 +110,7 @@ const redirectUrl = asyncHandler(async (req, res) => {
       });
     }
 
-    let redirectUrl = url.originalUrl;
-    if (url.domainId) {
-      redirectUrl = `${url.customUrl}`;
-    }
-    return res.redirect(redirectUrl);
+    return res.redirect(url.originalUrl);
   }
 });
 
@@ -635,6 +630,10 @@ const generateCustomUrl = asyncHandler(async (req, res) => {
     throw new ApiError(422, "Domain not found");
   }
 
+  if (!domain.isDomainVerified) {
+    throw new ApiError(422, "please verify the domain first");
+  }
+
   const urlId = nanoid(5);
   const generatedShortenUrl = `${process.env.BASE_URL}/${urlId}`;
 
@@ -663,7 +662,6 @@ const generateCustomUrl = asyncHandler(async (req, res) => {
     domainId,
   });
 
-  // Send response
   return res
     .status(200)
     .json(new ApiResponse(200, saveUrl, "URL shortened successfully"));
