@@ -1,5 +1,6 @@
 import dns from "dns";
 import { promisify } from "util";
+import { exec } from "child_process";
 
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
@@ -8,6 +9,7 @@ import { Domain } from "../../models/domain.model.js";
 import { User } from "../../models/user.model.js";
 
 const resolveCname = promisify(dns.resolveCname);
+const execPromise = promisify(exec);
 
 const addDomain = asyncHandler(async (req, res) => {
   const { domain } = req.body;
@@ -43,14 +45,26 @@ const addDomain = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Unable to save domain");
   }
 
+  // try {
+  //   await execPromise(`./nginx.sh ${domain}`);
+  //   console.log(`${domain} added to nginx config`);
+  // } catch (error) {
+  //   console.error(
+  //     `error while adding the domain in nginx config ${error.message}`
+  //   );
+  //   throw new ApiError(
+  //     500,
+  //     `error while adding the domain in nginx config ${error.message}`
+  //   );
+  // }
+
   res.status(201).json(
     new ApiResponse(
       200,
       {
         domain: saveDomain,
         cnameRecord,
-        instructions:
-          "Log in to your DNS provider's management console and add the above TXT record to your domain's DNS settings. It may take some time for DNS changes to propagate.",
+        instructions: `Log in to your DNS provider's management console and add the following CNAME record to your domain's DNS settings. It may take some time for DNS changes to propagate. Name: ${cnameRecord.name}, Value: ${cnameRecord.value}`,
       },
       "domain adding in progress"
     )

@@ -92,19 +92,9 @@ const generateShortUrl = asyncHandler(async (req, res) => {
 });
 
 const redirectUrl = asyncHandler(async (req, res) => {
-  const host = req.hostname;
-  const { urlId } = req.params.urlId;
-  console.log(host)
-
-  const customDomain = await Domain.findOne({ url: host });
-
-  const shortenUrl = await Url.findOne({
-    _id: customDomain._id,
-    domainId: urlId,
-  });
-  return res.redirect(301, shortenUrl.originalUrl);
-
-  const url = await Url.findOne({ urlId });
+  console.log(req);
+  const { urlId } = req.params;
+  const url = await Url.findOne({ urlId }).populate("domainId");
   if (!url) throw new ApiError(422, "url doesn't exists");
 
   if (new Date() > new Date(url.expiresIn)) {
@@ -120,7 +110,12 @@ const redirectUrl = asyncHandler(async (req, res) => {
         url: url?._id,
       });
     }
-    return res.redirect(url.originalUrl);
+
+    let redirectUrl = url.originalUrl;
+    if (url.domainId) {
+      redirectUrl = `${url.customUrl}`;
+    }
+    return res.redirect(redirectUrl);
   }
 });
 
@@ -661,7 +656,9 @@ const generateCustomUrl = asyncHandler(async (req, res) => {
     shortenUrl: generatedShortenUrl,
     customUrl: brandedShortenUrl,
     expiredIn,
-    logo: metadata.icon || `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
+    logo:
+      metadata.icon ||
+      `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
     isLoggedIn: true,
     domainId,
   });
