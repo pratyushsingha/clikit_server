@@ -58,11 +58,13 @@ import linkRouter from "./src/routes/link.route.js";
 import userRouter from "./src/routes/user.route.js";
 import healthCheckRouter from "./src/routes/healthcheck.route.js";
 import domainRouter from "./src/routes/domain.route.js";
+import subscriptionRouter from "./src/routes/subscription.route.js";
 
 app.use("/api/v1/url", urlRouter);
 app.use("/", linkRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/domain", domainRouter);
 app.use("/api/v1/", healthCheckRouter);
+app.use("/api/v1/subscription", subscriptionRouter);
 
 export { app };
