@@ -141,7 +141,9 @@ const domainDetails = asyncHandler(async (req, res) => {
 });
 
 const allDomains = asyncHandler(async (req, res) => {
-  const domains = await Domain.find({ owner: req.user._id });
+  const domains = await Domain.find({ owner: req.user._id }).select(
+    "_id url isDomainVefified"
+  );
   return res
     .status(200)
     .json(new ApiResponse(200, domains, "All domains retrieved successfully"));

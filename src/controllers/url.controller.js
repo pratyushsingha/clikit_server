@@ -600,6 +600,9 @@ const searchUrls = asyncHandler(async (req, res) => {
           {
             shortenUrl: { $regex: query, $options: "i" },
           },
+          {
+            customUrl: { $regex: query, $options: "i" },
+          },
         ],
       },
       { owner: req.user._id },
@@ -667,6 +670,48 @@ const generateCustomUrl = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, saveUrl, "URL shortened successfully"));
 });
 
+const getUrlsByDomain = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 12 } = req.query;
+  const { domainId } = req.params;
+
+  const domain = await Domain.findById(domainId);
+  if (!domain) {
+    throw new ApiError(422, "Domain not found");
+  }
+  if (domain.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not authorized to view this domain");
+  }
+
+  const urlsAggregate = Url.aggregate([
+    {
+      $match: {
+        domainId: new mongoose.Types.ObjectId(domainId),
+      },
+    },
+  ]);
+
+  if (!urlsAggregate) {
+    throw new ApiError(500, "something went wrong while fetching urls");
+  }
+
+  const urls = await Url.aggregatePaginate(
+    urlsAggregate,
+    getMongoosePaginationOptions({
+      page,
+      limit,
+      customLabels: {
+        totalDocs: "urlCount",
+        docs: "urls",
+      },
+    })
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, urls, "urls fetched successfully"));
+});
+
+
 export {
   generateShortUrl,
   redirectUrl,
@@ -680,4 +725,5 @@ export {
   urlDetails,
   searchUrls,
   generateCustomUrl,
+  getUrlsByDomain,
 };

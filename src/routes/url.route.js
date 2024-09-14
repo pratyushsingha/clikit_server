@@ -6,6 +6,7 @@ import {
   generateCustomUrl,
   generateQrCode,
   generateShortUrl,
+  getUrlsByDomain,
   getUserUrls,
   linkAnalytics,
   searchUrls,
@@ -28,5 +29,6 @@ router.route("/analytics/:_id").get(verifyJWT, linkAnalytics);
 router.route("/sevenDays/:_id").get(verifyJWT, sevenDaysClickAnalytics);
 router.route("/details/:_id").get(verifyJWT, urlDetails);
 router.route("/search").get(verifyJWT, searchUrls);
+router.route("/domain/:domainId").get(verifyJWT, getUrlsByDomain);
 
 export default router;
