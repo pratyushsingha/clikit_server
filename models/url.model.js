@@ -1,11 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
-
-const defaultExpiry = () => {
-  const currentDate = new Date();
-  currentDate.setDate(currentDate.getDate() + 30);
-  return currentDate;
-};
+import { defaultExpiry } from "../src/utils/helper.js";
 
 const urlSchema = new Schema(
   {
