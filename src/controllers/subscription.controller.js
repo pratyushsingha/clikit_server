@@ -3,8 +3,7 @@ import { asyncHandler } from "../utils/AsyncHandler.js";
 import { Subscription } from "../../models/subscription.model.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const endpointSecret =
-  "whsec_846e6c72dd4355bdc69b08b6b9faf1e59ffd3b4c60624d70de3d29a34e4e6107";
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const subscriptionCheckoutSession = asyncHandler(async (req, res) => {
   const session = await stripe.checkout.sessions.create({
