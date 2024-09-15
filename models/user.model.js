@@ -30,6 +30,9 @@ const userSchema = new Schema(
       enum: ["free", "premium"],
       default: "free",
     },
+    subscriptionId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
