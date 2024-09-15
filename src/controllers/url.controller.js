@@ -191,6 +191,7 @@ const updateBackHalf = asyncHandler(async (req, res) => {
     {
       $set: {
         shortenUrl: `${process.env.BASE_URL}/${urlId}`,
+        customUrl: url.customUrl.split("/")[0] + "/" + urlId,
         urlId,
       },
     },
@@ -448,7 +449,9 @@ const linkAnalytics = asyncHandler(async (req, res) => {
         $project: {
           _id: 0,
           totalVisits: 1,
-          browsers: { $size: "$browsers" },
+          browsers: {
+            $size: "$browsers",
+          },
           devices: { $size: "$devices" },
           platforms: { $size: "$platforms" },
           mobileDevices: { $size: "$mobileDevices" },
@@ -494,7 +497,7 @@ const linkAnalytics = asyncHandler(async (req, res) => {
   return res
     .status(201)
     .json(
-      new ApiResponse(200, analytics, "link analytics fetched successfully")
+      new ApiResponse(200, analytics[0], "link analytics fetched successfully")
     );
 });
 
@@ -710,7 +713,6 @@ const getUrlsByDomain = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, urls, "urls fetched successfully"));
 });
-
 
 export {
   generateShortUrl,

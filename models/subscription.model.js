@@ -11,7 +11,7 @@ const subscriptionSchema = new Schema(
       type: Number,
       required: true,
     },
-    paymentId: {
+    subscriptionId: {
       type: String,
       required: true,
     },
@@ -20,6 +20,23 @@ const subscriptionSchema = new Schema(
       enum: ["PENDING", "COMPLETED", "FAILED"],
       default: "PENDING",
       required: true,
+    },
+    expiredAt: {
+      type: Date,
+      required: true,
+    },
+    startsAt: {
+      type: Date,
+      required: true,
+    },
+    razorpay_signature: {
+      type: String,
+    },
+    razorpay_payment_id: {
+      type: String,
+    },
+    razorpay_subscription_id: {
+      type: String,
     },
   },
   {

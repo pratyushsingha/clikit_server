@@ -142,11 +142,27 @@ const domainDetails = asyncHandler(async (req, res) => {
 
 const allDomains = asyncHandler(async (req, res) => {
   const domains = await Domain.find({ owner: req.user._id }).select(
-    "_id url isDomainVefified"
+    "_id url isDomainVerified"
   );
   return res
     .status(200)
     .json(new ApiResponse(200, domains, "All domains retrieved successfully"));
 });
 
-export { addDomain, verifyDomainOwnership, domainDetails, allDomains };
+const allVerifiedDomains = asyncHandler(async (req, res) => {
+  const domains = await Domain.find({
+    owner: req.user._id,
+    isDomainVerified: true,
+  }).select("_id url isDomainVerified");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, domains, "All domains retrieved successfully"));
+});
+
+export {
+  addDomain,
+  verifyDomainOwnership,
+  domainDetails,
+  allDomains,
+  allVerifiedDomains,
+};
