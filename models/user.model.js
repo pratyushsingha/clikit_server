@@ -33,6 +33,12 @@ const userSchema = new Schema(
     subscriptionId: {
       type: String,
     },
+    resetToken: {
+      type: String,
+    },
+    resetTokenExpiry: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
