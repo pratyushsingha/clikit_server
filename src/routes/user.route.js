@@ -1,5 +1,7 @@
 import { Router } from "express";
 import {
+  authStatus,
+  changePassword,
   currentUser,
   loginUser,
   logoutUser,
@@ -18,5 +20,7 @@ router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateAvatar);
 router.route("/current-user").get(verifyUser, currentUser);
 router.route("/edit").patch(verifyJWT, updateUserDetails);
+router.route("/auth-status").get(authStatus);
+router.route("/change-password").patch(verifyJWT, changePassword);
 
 export default router;
