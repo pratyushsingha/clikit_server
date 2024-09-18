@@ -1,9 +1,11 @@
+import { nanoid } from "nanoid";
 import { Url } from "../../models/url.model.js";
 import { User } from "../../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { cloudinaryUpload } from "../utils/cloudinary.js";
+import { resend } from "../utils/resend.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -243,6 +245,65 @@ const changePassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, {}, "user created successfully"));
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) throw new ApiError(400, "email is required");
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(404, "Invalid email address");
+
+  const resetToken = nanoid(32);
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
+
+  try {
+    const sendResetEmail = await resend.emails.send({
+      from: process.env.RESEND_SENDER_EMAIL,
+      to: email,
+      subject: "Reset your password",
+      html: `<p>Hello, ${user.fullName}</p>
+             <p>You requested to reset your password. Please click the link below to reset it:</p>
+             <a href="${resetUrl}">Reset Password</a>
+             <p>If you did not request this, please ignore this email.</p>`,
+    });
+    if (!sendResetEmail.error) {
+      user.resetToken = resetToken;
+      user.resetTokenExpiry = Date.now() + 3600000;
+      await user.save();
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(200, {}, "Password reset link sent to your email")
+        );
+    }
+  } catch (error) {
+    throw new ApiError(500, "Error sending password reset email");
+  }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, email, password } = req.body;
+  if (!token || !email || !password) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  const user = await User.findOne({
+    email,
+    resetToken: token,
+    resetTokenExpiry: { $lt: Date.now() },
+  });
+
+  if (!user) throw new ApiError(400, "Invalid or expired reset token");
+
+  user.password = password;
+  user.resetToken = undefined;
+  user.resetTokenExpiry = undefined;
+  await user.save();
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, {}, "Password reset successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -252,4 +313,6 @@ export {
   updateUserDetails,
   authStatus,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };
