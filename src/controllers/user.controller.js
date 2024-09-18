@@ -163,7 +163,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 const currentUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user?._id).select(
-    "-password -refreshToken"
+    "-password -refreshToken -txtRecord"
   );
   if (!user) {
     new ApiError(404, "user not found");
@@ -201,6 +201,48 @@ const updateUserDetails = asyncHandler(async (req, res) => {
     );
 });
 
+const authStatus = asyncHandler(async (req, res) => {
+  const token =
+    req.cookies?.accessToken ||
+    (req.headers && req.headers["Authorization"]?.replace("Bearer", ""));
+
+  if (!token) {
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          isAuthenticated: false,
+        },
+        "user is not logged in"
+      )
+    );
+  } else {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { isAuthenticated: true }, "user is logged in")
+      );
+  }
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user._id);
+  const validatePassword = await user.isPasswordCorrect(oldPassword);
+
+  if (!validatePassword) {
+    throw new ApiError(401, "invalid user credentials");
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, {}, "user created successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -208,4 +250,6 @@ export {
   logoutUser,
   currentUser,
   updateUserDetails,
+  authStatus,
+  changePassword,
 };
