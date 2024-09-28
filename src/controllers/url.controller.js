@@ -251,7 +251,7 @@ const getUserUrls = asyncHandler(async (req, res) => {
   const urlAggregate = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req._id),
+        _id: new mongoose.Types.ObjectId(req.user._id),
       },
     },
     {
