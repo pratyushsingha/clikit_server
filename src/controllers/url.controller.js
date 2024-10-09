@@ -37,7 +37,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
     //     isLoggedIn: false,
     //   },
     // ];
-    const saveUrl = await Url.create({
+    const saveUrl = {
       urlId,
       originalUrl,
       shortenUrl,
@@ -45,7 +45,7 @@ const generateShortUrl = asyncHandler(async (req, res) => {
         metadata.icon ||
         `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,
       isLoggedIn: false,
-    });
+    };
     if (!saveUrl)
       throw new ApiError(
         500,
@@ -299,201 +299,219 @@ const linkAnalytics = asyncHandler(async (req, res) => {
   if (!(url.owner?.toString() === req.user._id.toString()))
     throw new ApiError(400, "u are not the owner of this link");
 
-  const analytics = await Url.aggregate([
-    [
-      {
-        $match: {
-          _id: new mongoose.Types.ObjectId(_id),
-        },
+  const freeUserAnalytics = await Url.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(_id),
       },
-      {
-        $lookup: {
-          from: "analytics",
-          localField: "_id",
-          foreignField: "url",
-          as: "analytics",
-        },
+    },
+    {
+      $lookup: {
+        from: "analytics",
+        localField: "_id",
+        foreignField: "url",
+        as: "analytics",
       },
-      {
-        $unwind: "$analytics",
+    },
+    {
+      $unwind: "$analytics",
+    },
+    {
+      $project: {
+        _id: 0,
+        totalVisits: { $sum: 1 },
       },
-      {
-        $group: {
-          _id: null,
-          totalVisits: { $sum: 1 },
-          browsers: { $addToSet: "$analytics.browser" },
-          devices: { $addToSet: "$analytics.device" },
-          platforms: { $addToSet: "$analytics.platform" },
-          mobileDevices: {
-            $addToSet: {
-              $cond: {
-                if: { $eq: ["$analytics.device", "Mobile"] },
-                then: "$analytics",
-                else: null,
-              },
-            },
-          },
-          iPhoneVisits: {
-            $sum: {
-              $cond: {
-                if: { $eq: ["$analytics.device", "Mobile"] },
-                then: {
-                  $cond: {
-                    if: { $eq: ["$analytics.platform", "iPhone"] },
-                    then: 1,
-                    else: 0,
-                  },
-                },
-                else: 0,
-              },
-            },
-          },
-          androidVisits: {
-            $sum: {
-              $cond: {
-                if: { $eq: ["$analytics.device", "Mobile"] },
-                then: {
-                  $cond: {
-                    if: { $eq: ["$analytics.platform", "Android"] },
-                    then: 1,
-                    else: 0,
-                  },
-                },
-                else: 0,
-              },
-            },
-          },
-          ipadVisits: {
-            $sum: {
-              $cond: {
-                if: { $eq: ["$analytics.device", "Mobile"] },
-                then: {
-                  $cond: {
-                    if: { $eq: ["$analytics.platform", "iPad"] },
-                    then: 1,
-                    else: 0,
-                  },
-                },
-                else: 0,
-              },
-            },
-          },
-          desktopVisits: {
-            $addToSet: {
-              $cond: {
-                if: { $eq: ["$analytics.device", "Desktop"] },
-                then: "$analytics",
-                else: null,
-              },
-            },
-          },
-          linuxVisits: {
-            $sum: {
-              $cond: {
-                if: {
-                  $eq: ["$analytics.device", "Desktop"],
-                },
-                then: {
-                  $cond: {
-                    if: {
-                      $eq: ["$analytics.platform", "Linux"],
-                    },
-                    then: 1,
-                    else: 0,
-                  },
-                },
-                else: 0,
-              },
-            },
-          },
-          windowsVisits: {
-            $sum: {
-              $cond: {
-                if: {
-                  $eq: ["$analytics.device", "Desktop"],
-                },
-                then: {
-                  $cond: {
-                    if: {
-                      $eq: ["$analytics.platform", "Microsoft Windows"],
-                    },
-                    then: 1,
-                    else: 0,
-                  },
-                },
-                else: 0,
-              },
-            },
-          },
-          chromeVisits: {
-            $sum: {
-              $cond: {
-                if: { $eq: ["$analytics.browser", "Chrome"] },
-                then: 1,
-                else: 0,
-              },
-            },
-          },
-          safariClicks: {
-            $sum: {
-              $cond: {
-                if: { $eq: ["$analytics.browser", "Safari"] },
-                then: 1,
-                else: 0,
-              },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalVisits: 1,
-          browsers: {
-            $size: "$browsers",
-          },
-          devices: { $size: "$devices" },
-          platforms: { $size: "$platforms" },
-          mobileDevices: { $size: "$mobileDevices" },
-          iPhoneVisits: 1,
-          androidVisits: 1,
-          ipadVisits: 1,
-          desktopVisits: { $size: "$desktopVisits" },
-          linuxVisits: 1,
-          windowsVisits: 1,
-          chromeVisits: 1,
-          safariClicks: 1,
-        },
-      },
-    ],
+    },
   ]);
 
-  if (!analytics)
-    throw new ApiError(500, "something went wrong while fetching the details");
+  const premiumUseranalytics = await Url.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(_id),
+      },
+    },
+    {
+      $lookup: {
+        from: "analytics",
+        localField: "_id",
+        foreignField: "url",
+        as: "analytics",
+      },
+    },
+    {
+      $unwind: "$analytics",
+    },
+    {
+      $group: {
+        _id: null,
+        totalVisits: { $sum: 1 },
+        browsers: { $addToSet: "$analytics.browser" },
+        devices: { $addToSet: "$analytics.device" },
+        platforms: { $addToSet: "$analytics.platform" },
+        mobileDevices: {
+          $addToSet: {
+            $cond: {
+              if: { $eq: ["$analytics.device", "Mobile"] },
+              then: "$analytics",
+              else: null,
+            },
+          },
+        },
+        iPhoneVisits: {
+          $sum: {
+            $cond: {
+              if: { $eq: ["$analytics.device", "Mobile"] },
+              then: {
+                $cond: {
+                  if: { $eq: ["$analytics.platform", "iPhone"] },
+                  then: 1,
+                  else: 0,
+                },
+              },
+              else: 0,
+            },
+          },
+        },
+        androidVisits: {
+          $sum: {
+            $cond: {
+              if: { $eq: ["$analytics.device", "Mobile"] },
+              then: {
+                $cond: {
+                  if: { $eq: ["$analytics.platform", "Android"] },
+                  then: 1,
+                  else: 0,
+                },
+              },
+              else: 0,
+            },
+          },
+        },
+        ipadVisits: {
+          $sum: {
+            $cond: {
+              if: { $eq: ["$analytics.device", "Mobile"] },
+              then: {
+                $cond: {
+                  if: { $eq: ["$analytics.platform", "iPad"] },
+                  then: 1,
+                  else: 0,
+                },
+              },
+              else: 0,
+            },
+          },
+        },
+        desktopVisits: {
+          $addToSet: {
+            $cond: {
+              if: { $eq: ["$analytics.device", "Desktop"] },
+              then: "$analytics",
+              else: null,
+            },
+          },
+        },
+        linuxVisits: {
+          $sum: {
+            $cond: {
+              if: {
+                $eq: ["$analytics.device", "Desktop"],
+              },
+              then: {
+                $cond: {
+                  if: {
+                    $eq: ["$analytics.platform", "Linux"],
+                  },
+                  then: 1,
+                  else: 0,
+                },
+              },
+              else: 0,
+            },
+          },
+        },
+        windowsVisits: {
+          $sum: {
+            $cond: {
+              if: {
+                $eq: ["$analytics.device", "Desktop"],
+              },
+              then: {
+                $cond: {
+                  if: {
+                    $eq: ["$analytics.platform", "Microsoft Windows"],
+                  },
+                  then: 1,
+                  else: 0,
+                },
+              },
+              else: 0,
+            },
+          },
+        },
+        chromeVisits: {
+          $sum: {
+            $cond: {
+              if: { $eq: ["$analytics.browser", "Chrome"] },
+              then: 1,
+              else: 0,
+            },
+          },
+        },
+        safariClicks: {
+          $sum: {
+            $cond: {
+              if: { $eq: ["$analytics.browser", "Safari"] },
+              then: 1,
+              else: 0,
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalVisits: 1,
+        browsers: {
+          $size: "$browsers",
+        },
+        devices: { $size: "$devices" },
+        platforms: { $size: "$platforms" },
+        mobileDevices: { $size: "$mobileDevices" },
+        iPhoneVisits: 1,
+        androidVisits: 1,
+        ipadVisits: 1,
+        desktopVisits: { $size: "$desktopVisits" },
+        linuxVisits: 1,
+        windowsVisits: 1,
+        chromeVisits: 1,
+        safariClicks: 1,
+      },
+    },
+  ]);
 
-  // const operatingSystemViews = analytics.map(
-  //   ({ linuxVisits, windowsVisits }) => ({
-  //     linuxVisits,
-  //     windowsVisits,
-  //     androidVisits: analytics[0].androidVisits,
-  //   })
-  // );
-
-  // const deviceViews = analytics.map(
-  //   ({ mobileDevices, ipadVisits, desktopVisits }) => ({
-  //     mobileDevices,
-  //     ipadVisits,
-  //     desktopVisits,
-  //   })
-  // );
-
-  // const analyticsData = [
-  //   { operatingSystemViews: operatingSystemViews },
-  //   { deviceClicks: deviceViews },
-  //   { chromeVisits: analytics[0].chromeVisits },
-  //   { totalVisits: analytics[0].totalVisits },
-  // ];
-
+  let analytics;
+  if (req.user.userType === "free") {
+    analytics = freeUserAnalytics;
+  } else if (req.user.userType === "premium") {
+    analytics = premiumUseranalytics;
+  } else {
+    throw new ApiError(400, "Invalid user type");
+  }
+  
+  if (!analytics.length > 0) {
+    return res.status(201).json(
+      new ApiResponse(
+        200,
+        {
+          totalVisits: 0,
+        },
+        "link analytics fetched successfully"
+      )
+    );
+  }
+  console.log(analytics);
   return res
     .status(201)
     .json(
@@ -661,6 +679,7 @@ const generateCustomUrl = asyncHandler(async (req, res) => {
     shortenUrl: generatedShortenUrl,
     customUrl: brandedShortenUrl,
     expiredIn,
+    owner: req.user._id,
     logo:
       metadata.icon ||
       `https://ui-avatars.com/api/?name=${metadata.title}&background=random&color=fff`,

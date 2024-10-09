@@ -1,1 +1,1 @@
-export const DB_NAME = "tinytap";
+export const DB_NAME = "clikit";

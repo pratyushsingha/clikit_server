@@ -4,6 +4,7 @@ import requestIp from "request-ip";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import Useragent from "express-useragent";
+import cron from "node-cron";
 
 import { ApiError } from "./src/utils/ApiError.js";
 
@@ -53,12 +54,22 @@ app.use(express.static("public"));
 app.use(cookieParser());
 app.use(Useragent.express());
 
+cron.schedule("0 0 * * *", async () => {
+  try {
+    await checkSubscriptionExpiry();
+    console.log("Checked for expired subscriptions");
+  } catch (error) {
+    console.error("Error checking subscriptions:", error);
+  }
+});
+
 import urlRouter from "./src/routes/url.route.js";
 import linkRouter from "./src/routes/link.route.js";
 import userRouter from "./src/routes/user.route.js";
 import healthCheckRouter from "./src/routes/healthcheck.route.js";
 import domainRouter from "./src/routes/domain.route.js";
 import subscriptionRouter from "./src/routes/subscription.route.js";
+import { checkSubscriptionExpiry } from "./src/controllers/subscription.controller.js";
 
 app.use("/api/v1/url", urlRouter);
 app.use("/", linkRouter);
