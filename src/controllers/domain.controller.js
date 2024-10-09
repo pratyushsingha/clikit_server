@@ -74,51 +74,63 @@ const verifyDomainOwnership = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to verify this domain");
   }
 
-  try {
-    const records = await resolveCname(domain.url);
-    if (records.includes(`${process.env.CNAME_TARGET}`)) {
-      domain.isDomainVerified = true;
-      await domain.save();
-      try {
-        await execPromise(
-          `sudo ${process.env.NGINX_SCRIPT_FILE_PATH} ${domain.url} ${process.env.BACKEND_SERVICE} ${process.env.CERTBOT_EMAIL}`
-        );
-        console.log(`${domain.url} added to nginx config`);
-      } catch (error) {
-        console.error(
-          `error while adding the domain in nginx config ${error.message}`
-        );
-        throw new ApiError(
-          500,
-          `error while adding the domain in nginx config ${error.message}`
-        );
-      }
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            { isDomainVerified: true },
-            "Domain ownership verified successfully"
-          )
-        );
-    } else {
-      console.log("Verification failed: CNAME target not found");
-      return res
-        .status(400)
-        .json(
-          new ApiResponse(
-            400,
-            { isDomainVerified: false },
-            "CNAME target not found... try again later"
-          )
-        );
-    }
-  } catch (err) {
-    console.error("Failed to resolve CNAME records:", err);
+  if (domain.isDomainVerified) {
     return res
-      .status(500)
-      .json(new ApiResponse(500, null, "Failed to resolve CNAME records"));
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { isDomainVerified: true },
+          "Domain ownership already verified"
+        )
+      );
+  } else {
+    try {
+      const records = await resolveCname(domain.url);
+      if (records.includes(`${process.env.CNAME_TARGET}`)) {
+        domain.isDomainVerified = true;
+        await domain.save();
+        try {
+          await execPromise(
+            `sudo ${process.env.NGINX_SCRIPT_FILE_PATH} ${domain.url} ${process.env.BACKEND_SERVICE} ${process.env.CERTBOT_EMAIL}`
+          );
+          console.log(`${domain.url} added to nginx config`);
+        } catch (error) {
+          console.error(
+            `error while adding the domain in nginx config ${error.message}`
+          );
+          throw new ApiError(
+            500,
+            `error while adding the domain in nginx config ${error.message}`
+          );
+        }
+        return res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              { isDomainVerified: true },
+              "Domain ownership verified successfully"
+            )
+          );
+      } else {
+        console.log("Verification failed: CNAME target not found");
+        return res
+          .status(400)
+          .json(
+            new ApiResponse(
+              400,
+              { isDomainVerified: false },
+              "CNAME target not found... try again later"
+            )
+          );
+      }
+    } catch (err) {
+      console.error("Failed to resolve CNAME records:", err);
+      return res
+        .status(500)
+        .json(new ApiResponse(500, null, "Failed to resolve CNAME records"));
+    }
   }
 });
 
