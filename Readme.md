@@ -1,30 +1,33 @@
 
-# TinyTap Backend
+# Clikit server
 
+## Environment Variables
+Before running the application, rename the .env.example file to .env and fill all the environment variables.
 ## Run Locally
 
 Clone the project
 
 ```bash
-  git clone https://github.com/pratyushsingha/TinyTap_Backend
+  git clone https://github.com/pratyushsingha/clikit_server
 ```
 
 ```bash
-  cd TinyTap_Backend
+  cd clikit_server
 ```
+
 
 Install dependencies
 
 ```bash
-  yarn
+  npm i
 ```
 
 Start the server
 
 ```bash
-  yarn dev
+  npm run dev
 ```
-server is  running at `http://localhost:8080/`
+server is  running at `http://localhost:8082/`
 
 ## documentation
-[postman documentation](https://documenter.getpostman.com/view/25760346/2sA35G3gqN)
+On the way(comming soon)
